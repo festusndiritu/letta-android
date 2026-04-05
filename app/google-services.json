@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1040432709945",
+    "project_id": "letta-36081",
+    "storage_bucket": "letta-36081.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1040432709945:android:42f8a5d9981c5282f768e8",
+        "android_client_info": {
+          "package_name": "dev.mizzenmast.letta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY9378XaDriPTLZAvzaNioPivXTAXGjAg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
