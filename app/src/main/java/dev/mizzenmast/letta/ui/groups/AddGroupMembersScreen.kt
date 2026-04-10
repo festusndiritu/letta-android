@@ -150,6 +150,15 @@ fun AddGroupMembersScreen(
                 singleLine = true,
             )
 
+            if (query.length < 2) {
+                Text(
+                    text = "Type at least 2 characters to search.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+
             if (selected.isNotEmpty()) {
                 Text(
                     text = "Selected: ${selected.joinToString { it.displayName }}",

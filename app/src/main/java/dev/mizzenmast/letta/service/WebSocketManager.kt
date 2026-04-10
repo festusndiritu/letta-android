@@ -9,12 +9,16 @@ import dev.mizzenmast.letta.data.local.entity.MessageEntity
 import dev.mizzenmast.letta.data.remote.api.AuthApiService
 import dev.mizzenmast.letta.data.remote.dto.MessageDto
 import dev.mizzenmast.letta.data.remote.dto.RefreshRequest
+import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -47,6 +51,12 @@ class WebSocketManager @Inject constructor(
 
     private val _events = MutableSharedFlow<WsInboundEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<WsInboundEvent> = _events
+
+    private val _presence = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val presence: StateFlow<Map<String, Boolean>> = _presence
+
+    private val _lastSeen = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val lastSeen: StateFlow<Map<String, Long>> = _lastSeen
 
     private val client = OkHttpClient.Builder()
         .pingInterval(20, TimeUnit.SECONDS)
@@ -83,12 +93,12 @@ class WebSocketManager @Inject constructor(
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(ws: WebSocket, response: Response) {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d(TAG, "WebSocket connected")
                 reconnectDelay = 1_000L
             }
 
-            override fun onMessage(ws: WebSocket, text: String) {
+            override fun onMessage(webSocket: WebSocket, text: String) {
                 scope.launch { handleMessage(text) }
             }
 
@@ -102,7 +112,7 @@ class WebSocketManager @Inject constructor(
                 }
             }
 
-            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "WebSocket failure: ${t.message}")
                 scheduleReconnect()
             }
@@ -199,7 +209,7 @@ class WebSocketManager @Inject constructor(
                     ))
                     conversationDao.updateLastMessage(
                         msg.conversationId,
-                        msg.content,
+                        messagePreview(msg),
                         msg.createdAt,
                         msg.senderId,
                     )
@@ -246,7 +256,16 @@ class WebSocketManager @Inject constructor(
                 }
                 "presence.update" -> {
                     val userId = payload["user_id"]?.jsonPrimitive?.content ?: return
-                    val online = payload["online"]?.jsonPrimitive?.content?.toBoolean() ?: return
+                    val online = payload["online"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                        ?: payload["is_online"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                        ?: return
+                    val lastActiveAt = payload["last_active_at"]?.jsonPrimitive?.content
+                        ?.let { parseLastActive(it) }
+                    _presence.update { it + (userId to online) }
+                    when {
+                        lastActiveAt != null -> _lastSeen.update { it + (userId to lastActiveAt) }
+                        !online -> _lastSeen.update { it + (userId to System.currentTimeMillis()) }
+                    }
                     _events.emit(WsInboundEvent.PresenceUpdate(userId, online))
                 }
             }
@@ -269,6 +288,10 @@ class WebSocketManager @Inject constructor(
     }
 }
 
+private fun parseLastActive(value: String): Long? {
+    return value.toLongOrNull() ?: runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
+}
+
 fun MessageDto.toEntity(
     isMine: Boolean,
     senderName: String = "",
@@ -289,3 +312,15 @@ fun MessageDto.toEntity(
     createdAt = createdAt,
     isMine = isMine,
 )
+
+private fun messagePreview(message: MessageDto): String {
+    val content = message.content?.trim().orEmpty()
+    if (content.isNotEmpty()) return content
+    return when (message.type) {
+        "image" -> "Photo"
+        "video" -> "Video"
+        "audio" -> "Audio"
+        "document" -> "Document"
+        else -> "Message"
+    }
+}

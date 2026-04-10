@@ -2,10 +2,13 @@ package dev.mizzenmast.letta.data.repository
 
 import dev.mizzenmast.letta.data.local.dao.ConversationDao
 import dev.mizzenmast.letta.data.local.dao.MessageDao
+import dev.mizzenmast.letta.data.local.dao.PinnedMessageDao
 import dev.mizzenmast.letta.data.local.entity.ConversationEntity
 import dev.mizzenmast.letta.data.local.entity.ConversationMemberEntity
 import dev.mizzenmast.letta.data.local.entity.MessageEntity
+import dev.mizzenmast.letta.data.local.entity.PinnedMessageEntity
 import dev.mizzenmast.letta.data.remote.api.ConversationApiService
+import dev.mizzenmast.letta.data.remote.dto.BlockUserRequest
 import dev.mizzenmast.letta.data.remote.dto.ContactDto
 import dev.mizzenmast.letta.data.remote.dto.ContactSyncRequest
 import dev.mizzenmast.letta.data.remote.dto.ConversationDto
@@ -20,6 +23,8 @@ import dev.mizzenmast.letta.data.remote.dto.SessionDto
 import dev.mizzenmast.letta.data.remote.dto.AddMembersRequest
 import dev.mizzenmast.letta.data.remote.dto.RemoveMemberRequest
 import dev.mizzenmast.letta.data.remote.dto.UpdateConversationRequest
+import dev.mizzenmast.letta.data.remote.dto.PinMessageRequest
+import dev.mizzenmast.letta.data.remote.dto.VotePollRequest
 import dev.mizzenmast.letta.service.toEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -30,6 +35,7 @@ class ConversationRepository @Inject constructor(
     private val api: ConversationApiService,
     private val conversationDao: ConversationDao,
     private val messageDao: MessageDao,
+    private val pinnedMessageDao: PinnedMessageDao,
     private val tokenStore: dev.mizzenmast.letta.data.local.TokenStore,
 ) {
     // ── Conversations ───────────────────────────────────────────────────────
@@ -46,9 +52,13 @@ class ConversationRepository @Inject constructor(
             val currentUserId = tokenStore.userId
             conversationDao.upsertAll(conversations.map { conv ->
                 val display = resolveDirectDisplay(conv, currentUserId)
+                val existing = conversationDao.getById(conv.id)
                 conv.toEntity(
                     nameOverride = display?.displayName,
                     avatarOverride = display?.avatarUrl,
+                    lastMessageContent = existing?.lastMessageContent,
+                    lastMessageAt = existing?.lastMessageAt,
+                    lastMessageSenderId = existing?.lastMessageSenderId,
                 )
             })
             conversations.forEach { conv ->
@@ -99,6 +109,9 @@ class ConversationRepository @Inject constructor(
 
     fun observeMessages(conversationId: String): Flow<List<MessageEntity>> =
         messageDao.observeByConversation(conversationId)
+
+    fun observePinnedMessages(conversationId: String): Flow<List<PinnedMessageEntity>> =
+        pinnedMessageDao.observePins(conversationId)
 
     suspend fun loadMoreMessages(conversationId: String, beforeId: String): Result<List<MessageDto>> {
         return try {
@@ -213,14 +226,93 @@ class ConversationRepository @Inject constructor(
         }
     }
 
+    suspend fun voteOnPoll(messageId: String, optionIndices: List<Int>): Result<Unit> {
+        return try {
+            api.voteOnPoll(messageId, VotePollRequest(optionIndices))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMessage(messageId: String): Result<Unit> {
+        return try {
+            api.deleteMessage(messageId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun refreshPinnedMessages(conversationId: String) {
+        try {
+            val pinned = api.getPinnedMessages(conversationId)
+            val members = conversationDao.getMembers(conversationId)
+            val memberMap = members.associateBy { it.userId }
+            val currentUserId = tokenStore.userId
+            messageDao.upsertAll(pinned.map { msg ->
+                val member = memberMap[msg.senderId]
+                msg.toEntity(
+                    isMine = msg.senderId == currentUserId,
+                    senderName = member?.displayName ?: "",
+                    senderAvatar = member?.avatarUrl,
+                )
+            })
+            pinnedMessageDao.upsertAll(pinned.map { msg ->
+                PinnedMessageEntity(
+                    id = "${conversationId}_${msg.id}",
+                    conversationId = conversationId,
+                    messageId = msg.id,
+                )
+            })
+        } catch (_: Exception) { }
+    }
+
+    suspend fun pinMessage(conversationId: String, messageId: String): Result<Unit> {
+        return try {
+            api.pinMessage(conversationId, PinMessageRequest(messageId))
+            pinnedMessageDao.upsertAll(
+                listOf(
+                    PinnedMessageEntity(
+                        id = "${conversationId}_${messageId}",
+                        conversationId = conversationId,
+                        messageId = messageId,
+                    )
+                )
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unpinMessage(conversationId: String, messageId: String): Result<Unit> {
+        return try {
+            api.unpinMessage(conversationId, messageId)
+            pinnedMessageDao.deletePin(conversationId, messageId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun clearLocalConversation(conversationId: String) {
+        messageDao.deleteByConversation(conversationId)
+        conversationDao.clearLastMessage(conversationId)
+    }
+
     suspend fun getConversation(conversationId: String): Result<ConversationDto> {
         return try {
             val conv = api.getConversation(conversationId)
             val display = resolveDirectDisplay(conv, tokenStore.userId)
+            val existing = conversationDao.getById(conversationId)
             conversationDao.upsert(
                 conv.toEntity(
                     nameOverride = display?.displayName,
                     avatarOverride = display?.avatarUrl,
+                    lastMessageContent = existing?.lastMessageContent,
+                    lastMessageAt = existing?.lastMessageAt,
+                    lastMessageSenderId = existing?.lastMessageSenderId,
                 )
             )
             conversationDao.upsertMembers(conv.members.map { member ->
@@ -250,10 +342,14 @@ class ConversationRepository @Inject constructor(
                 UpdateConversationRequest(name = name, avatarUrl = avatarUrl),
             )
             val display = resolveDirectDisplay(updated, tokenStore.userId)
+            val existing = conversationDao.getById(conversationId)
             conversationDao.upsert(
                 updated.toEntity(
                     nameOverride = display?.displayName,
                     avatarOverride = display?.avatarUrl,
+                    lastMessageContent = existing?.lastMessageContent,
+                    lastMessageAt = existing?.lastMessageAt,
+                    lastMessageSenderId = existing?.lastMessageSenderId,
                 )
             )
             Result.success(updated)
@@ -281,6 +377,36 @@ class ConversationRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun searchMessages(
+        conversationId: String,
+        query: String,
+        limit: Int = 30,
+    ): Result<List<MessageDto>> {
+        return try {
+            Result.success(api.searchMessages(conversationId, query, limit))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun blockUser(userId: String): Result<Unit> {
+        return try {
+            api.blockUser(BlockUserRequest(userId))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unblockUser(userId: String): Result<Unit> {
+        return try {
+            api.unblockUser(BlockUserRequest(userId))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 private data class DirectDisplay(val displayName: String?, val avatarUrl: String?)
@@ -297,13 +423,17 @@ private fun resolveDirectDisplay(
 fun ConversationDto.toEntity(
     nameOverride: String? = null,
     avatarOverride: String? = null,
+    lastMessageContent: String? = null,
+    lastMessageAt: String? = null,
+    lastMessageSenderId: String? = null,
 ) = ConversationEntity(
     id = id,
     type = type,
     name = nameOverride ?: name,
     avatarUrl = avatarOverride ?: avatarUrl,
     createdAt = createdAt,
-    lastMessageContent = null,
-    lastMessageAt = null,
-    lastMessageSenderId = null,
+    lastMessageContent = lastMessageContent,
+    lastMessageAt = lastMessageAt,
+    lastMessageSenderId = lastMessageSenderId,
 )
+

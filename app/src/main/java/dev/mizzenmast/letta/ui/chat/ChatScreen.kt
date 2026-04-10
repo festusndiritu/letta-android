@@ -3,75 +3,88 @@ package dev.mizzenmast.letta.ui.chat
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Audiotrack
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Videocam
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.EmojiEmotions
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -91,9 +104,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -103,16 +118,25 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
+import androidx.emoji2.emojipicker.EmojiPickerView
+import androidx.emoji2.text.EmojiCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import dev.mizzenmast.letta.data.local.entity.ConversationMemberEntity
 import dev.mizzenmast.letta.data.local.entity.MessageEntity
+import dev.mizzenmast.letta.data.remote.dto.LinkPreviewDto
+import dev.mizzenmast.letta.data.remote.dto.MessageDto
 import java.io.File
+import java.io.FileOutputStream
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -137,7 +161,15 @@ fun ChatScreen(
     val conversation by viewModel.conversation.collectAsStateWithLifecycle()
     val members by viewModel.members.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val presence by viewModel.presence.collectAsStateWithLifecycle()
+    val lastSeen by viewModel.lastSeen.collectAsStateWithLifecycle()
+    val linkPreviews by viewModel.linkPreviews.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val searchError by viewModel.searchError.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val inputFocusRequester = remember { FocusRequester() }
 
     val currentUserId = viewModel.currentUserId
     val otherMember = remember(members, currentUserId) {
@@ -148,6 +180,9 @@ fun ChatScreen(
     } else {
         conversation?.name ?: "Chat"
     }
+    val isOtherOnline = otherMember?.userId?.let { presence[it] } == true
+    val lastSeenText = otherMember?.userId?.let { id -> lastSeen[id]?.let { formatLastSeen(it) } }
+    val isOtherTyping = otherMember?.userId?.let { id -> uiState.typingUserIds.contains(id) } == true
 
     val listState = rememberLazyListState()
     var messageText by remember { mutableStateOf("") }
@@ -160,32 +195,43 @@ fun ChatScreen(
     var activeReactionMessageId by remember { mutableStateOf<String?>(null) }
     var pendingMediaUri by remember { mutableStateOf<Uri?>(null) }
     var pendingMediaMime by remember { mutableStateOf<String?>(null) }
+    var pendingMediaCaption by remember { mutableStateOf("") }
     var showAttachmentMenu by remember { mutableStateOf(false) }
+    val attachmentSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showSearchSheet by remember { mutableStateOf(false) }
+    var showEmojiSheet by remember { mutableStateOf(false) }
     var expandedImageUrl by remember { mutableStateOf<String?>(null) }
     var expandedVideoUrl by remember { mutableStateOf<String?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordingFile by remember { mutableStateOf<File?>(null) }
     var recordingElapsedMs by remember { mutableStateOf(0L) }
-    val reactionPresets = remember {
-        listOf("👍", "❤️", "😂", "😮", "😢", "🔥")
-    }
+    val reactionPresets = remember { listOf("👍", "❤️", "😂", "😮", "😢", "🔥") }
 
     val swipeThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
 
-    // Scroll to bottom on new message
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
     }
 
-    // Typing indicator debounce
     LaunchedEffect(messageText) {
-        if (messageText.isNotEmpty() && !isTyping) {
+        if (messageText.isEmpty()) {
+            if (isTyping) {
+                isTyping = false
+                viewModel.sendTypingStop()
+            }
+            return@LaunchedEffect
+        }
+
+        if (!isTyping) {
             isTyping = true
             viewModel.sendTypingStart()
-        } else if (messageText.isEmpty() && isTyping) {
+        }
+
+        delay(1500)
+        if (messageText.isNotEmpty()) {
             isTyping = false
             viewModel.sendTypingStop()
         }
@@ -204,6 +250,21 @@ fun ChatScreen(
 
     fun launchPicker(mimeType: String) {
         attachmentPicker.launch(mimeType)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview(),
+    ) { bitmap ->
+        if (bitmap != null) {
+            val uri = cacheBitmap(bitmap, context.cacheDir)
+            if (uri != null) {
+                viewModel.clearMediaError()
+                pendingMediaUri = uri
+                pendingMediaMime = "image/jpeg"
+            } else {
+                viewModel.setMediaError("Unable to capture photo")
+            }
+        }
     }
 
     fun startRecording() {
@@ -298,6 +359,12 @@ fun ChatScreen(
         viewModel.uploadAndSendMedia(Uri.fromFile(file), "audio/mp4")
     }
 
+    LaunchedEffect(showEmojiSheet) {
+        if (showEmojiSheet) {
+            keyboardController?.hide()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -316,22 +383,45 @@ fun ChatScreen(
                     ) {
                         Text(
                             text = titleText,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                            ),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        AnimatedVisibility(
-                            visible = uiState.typingUserIds.isNotEmpty(),
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                        ) {
-                            Text(
-                                text = "typing...",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                        if (conversation?.type == "direct") {
+                            when {
+                                isOtherTyping -> {
+                                    Text(
+                                        text = "Typing...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                isOtherOnline -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary),
+                                        )
+                                        Text(
+                                            text = "Online",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                lastSeenText != null -> {
+                                    Text(
+                                        text = "Last seen $lastSeenText",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                     }
                 },
@@ -344,6 +434,9 @@ fun ChatScreen(
                         IconButton(onClick = { onProfileClick(otherMember.userId) }) {
                             Icon(Icons.Rounded.Info, contentDescription = "Profile")
                         }
+                    }
+                    IconButton(onClick = { showSearchSheet = true }) {
+                        Icon(Icons.Rounded.Search, contentDescription = "Search messages")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -396,51 +489,6 @@ fun ChatScreen(
                         }
                     }
 
-                    AnimatedVisibility(
-                        visible = showAttachmentMenu && !isRecording,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                AttachmentAction(
-                                    icon = Icons.Rounded.Image,
-                                    label = "Images",
-                                    onClick = { launchPicker("image/*") },
-                                )
-                                AttachmentAction(
-                                    icon = Icons.Rounded.Videocam,
-                                    label = "Videos",
-                                    onClick = { launchPicker("video/*") },
-                                )
-                                AttachmentAction(
-                                    icon = Icons.Rounded.Audiotrack,
-                                    label = "Audio",
-                                    onClick = { launchPicker("audio/*") },
-                                )
-                                AttachmentAction(
-                                    icon = Icons.Rounded.Description,
-                                    label = "Docs",
-                                    onClick = { launchPicker("*/*") },
-                                )
-                                AttachmentAction(
-                                    icon = Icons.Rounded.AttachFile,
-                                    label = "All",
-                                    onClick = { launchPicker("*/*") },
-                                )
-                            }
-                        }
-                    }
-
                     if (isRecording) {
                         RecordingBar(
                             elapsedMs = recordingElapsedMs,
@@ -453,39 +501,45 @@ fun ChatScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            IconButton(
-                                onClick = { showAttachmentMenu = !showAttachmentMenu },
-                                enabled = !uiState.isUploadingMedia,
-                            ) {
-                                Icon(Icons.Rounded.AttachFile, contentDescription = "Attach file")
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    val granted = ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.RECORD_AUDIO,
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                    if (granted) {
-                                        startRecording()
-                                    } else {
-                                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    }
-                                },
-                                enabled = !uiState.isUploadingMedia,
-                            ) {
-                                Icon(
-                                    Icons.Rounded.Mic,
-                                    contentDescription = "Record voice",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-
+                            val showCamera = messageText.isBlank() &&
+                                !uiState.isUploadingMedia &&
+                                pendingMediaUri == null
                             OutlinedTextField(
                                 value = messageText,
                                 onValueChange = { messageText = it },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(inputFocusRequester),
                                 placeholder = { Text("Message") },
+                                leadingIcon = {
+                                    IconButton(onClick = { showEmojiSheet = true }) {
+                                        Icon(
+                                            Icons.Rounded.EmojiEmotions,
+                                            contentDescription = "Emoji picker",
+                                        )
+                                    }
+                                },
+                                trailingIcon = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        IconButton(
+                                            onClick = { showAttachmentMenu = true },
+                                            enabled = !uiState.isUploadingMedia,
+                                        ) {
+                                            Icon(Icons.Rounded.AttachFile, contentDescription = "Attach file")
+                                        }
+                                        if (showCamera) {
+                                            IconButton(
+                                                onClick = { cameraLauncher.launch(null) },
+                                                enabled = !uiState.isUploadingMedia,
+                                            ) {
+                                                Icon(Icons.Rounded.PhotoCamera, contentDescription = "Camera")
+                                            }
+                                        }
+                                    }
+                                },
                                 keyboardOptions = KeyboardOptions(
                                     capitalization = KeyboardCapitalization.Sentences,
                                     imeAction = ImeAction.Send,
@@ -499,7 +553,7 @@ fun ChatScreen(
                                             isTyping = false
                                             viewModel.sendTypingStop()
                                         }
-                                    }
+                                    },
                                 ),
                                 shape = RoundedCornerShape(24.dp),
                                 maxLines = 4,
@@ -509,38 +563,43 @@ fun ChatScreen(
                                 ),
                             )
 
-                            if (uiState.isUploadingMedia) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else {
-                                IconButton(
-                                    onClick = {
-                                        if (messageText.isNotBlank()) {
-                                            viewModel.sendMessage(messageText, replyToMessage?.id)
-                                            messageText = ""
-                                            replyToMessage = null
-                                            isTyping = false
-                                            viewModel.sendTypingStop()
+                            val canSend = messageText.isNotBlank()
+                            IconButton(
+                                onClick = {
+                                    if (canSend) {
+                                        viewModel.sendMessage(messageText, replyToMessage?.id)
+                                        messageText = ""
+                                        replyToMessage = null
+                                        isTyping = false
+                                        viewModel.sendTypingStop()
+                                    } else {
+                                        val granted = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.RECORD_AUDIO,
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                        if (granted) {
+                                            startRecording()
+                                        } else {
+                                            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                         }
-                                    },
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (messageText.isNotBlank()) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.surfaceVariant
-                                        ),
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Rounded.Send,
-                                        contentDescription = "Send",
-                                        tint = if (messageText.isNotBlank()) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                }
+                                    }
+                                },
+                                enabled = !uiState.isUploadingMedia,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (canSend) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                    ),
+                            ) {
+                                Icon(
+                                    imageVector = if (canSend) Icons.AutoMirrored.Rounded.Send else Icons.Rounded.Mic,
+                                    contentDescription = if (canSend) "Send" else "Record voice",
+                                    tint = if (canSend) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
+                                )
                             }
                         }
                     }
@@ -566,7 +625,38 @@ fun ChatScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             contentPadding = PaddingValues(vertical = 8.dp),
         ) {
-            // Load more trigger
+            if (messages.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.Chat,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(40.dp),
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "Start the conversation",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = "Send a message or attach a file.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 if (uiState.isLoadingMore) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -603,6 +693,8 @@ fun ChatScreen(
                     onImageClick = { url -> expandedImageUrl = url },
                     onVideoClick = { url -> expandedVideoUrl = url },
                     swipeThresholdPx = swipeThresholdPx,
+                    linkPreviews = linkPreviews,
+                    onRequestLinkPreview = { viewModel.requestLinkPreview(it) },
                 )
             }
         }
@@ -646,24 +738,78 @@ fun ChatScreen(
         )
     }
 
+    if (showAttachmentMenu) {
+        ModalBottomSheet(
+            onDismissRequest = { showAttachmentMenu = false },
+            sheetState = attachmentSheetState,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Attach",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                val actions = listOf(
+                    AttachmentItem(Icons.Rounded.Image, "Photos") { launchPicker("image/*") },
+                    AttachmentItem(Icons.Rounded.Videocam, "Videos") { launchPicker("video/*") },
+                    AttachmentItem(Icons.Rounded.Audiotrack, "Audio") { launchPicker("audio/*") },
+                    AttachmentItem(Icons.Rounded.Description, "Docs") { launchPicker("*/*") },
+                    AttachmentItem(Icons.Rounded.AttachFile, "All files") { launchPicker("*/*") },
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    gridItems(actions) { item ->
+                        AttachmentActionCard(
+                            icon = item.icon,
+                            label = item.label,
+                            onClick = item.onClick,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     if (pendingMediaUri != null) {
         val isImage = pendingMediaMime?.startsWith("image/") == true
         AlertDialog(
             onDismissRequest = { pendingMediaUri = null },
             title = { Text("Send attachment?") },
             text = {
-                if (isImage) {
-                    AsyncImage(
-                        model = pendingMediaUri,
-                        contentDescription = "Attachment preview",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 240.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (isImage) {
+                        AsyncImage(
+                            model = pendingMediaUri,
+                            contentDescription = "Attachment preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 240.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                        )
+                    } else {
+                        Text("This file will be sent to the chat.")
+                    }
+                    OutlinedTextField(
+                        value = pendingMediaCaption,
+                        onValueChange = { pendingMediaCaption = it },
+                        label = { Text("Caption") },
+                        placeholder = { Text("Add a caption") },
+                        singleLine = false,
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                } else {
-                    Text("This file will be sent to the chat.")
                 }
             },
             confirmButton = {
@@ -671,23 +817,55 @@ fun ChatScreen(
                     onClick = {
                         val uri = pendingMediaUri
                         if (uri != null) {
-                            viewModel.uploadAndSendMedia(uri, pendingMediaMime)
+                            viewModel.uploadAndSendMedia(uri, pendingMediaMime, pendingMediaCaption)
                         }
                         pendingMediaUri = null
                         pendingMediaMime = null
-                    }
+                        pendingMediaCaption = ""
+                    },
                 ) { Text("Send") }
             },
             dismissButton = {
                 TextButton(onClick = {
                     pendingMediaUri = null
                     pendingMediaMime = null
+                    pendingMediaCaption = ""
                 }) { Text("Cancel") }
-            }
+            },
         )
     }
 
-    // Load more on scroll to top
+    if (showSearchSheet) {
+        MessageSearchSheet(
+            members = members,
+            results = searchResults,
+            isSearching = isSearching,
+            errorMessage = searchError,
+            onDismiss = {
+                showSearchSheet = false
+                viewModel.clearSearchResults()
+            },
+            onSearch = { query -> viewModel.searchMessages(query) },
+        )
+    }
+
+    if (showEmojiSheet) {
+        EmojiPickerSheet(
+            onDismiss = { showEmojiSheet = false },
+            onEmojiSelected = { emoji ->
+                messageText += emojiForInsert(emoji)
+            },
+            onBackspace = {
+                messageText = removeLastGlyph(messageText)
+            },
+            onShowKeyboard = {
+                showEmojiSheet = false
+                inputFocusRequester.requestFocus()
+                keyboardController?.show()
+            },
+        )
+    }
+
     val firstVisibleIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     LaunchedEffect(firstVisibleIndex) {
         if (firstVisibleIndex == 0 && messages.isNotEmpty()) {
@@ -710,9 +888,12 @@ private fun MessageItem(
     onImageClick: (String) -> Unit,
     onVideoClick: (String) -> Unit,
     swipeThresholdPx: Float,
+    linkPreviews: Map<String, LinkPreviewDto>,
+    onRequestLinkPreview: (String) -> Unit,
 ) {
     var dragOffset by remember(message.id) { mutableStateOf(0f) }
     val clampedOffset = dragOffset.coerceIn(0f, swipeThresholdPx * 1.2f)
+    val interactionSource = remember { MutableInteractionSource() }
 
     Column(
         modifier = Modifier
@@ -734,6 +915,8 @@ private fun MessageItem(
                 }
             }
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
                 onClick = {},
                 onLongClick = onLongPress,
             ),
@@ -745,6 +928,8 @@ private fun MessageItem(
             reactionCounts = reactionCounts,
             onImageClick = onImageClick,
             onVideoClick = onVideoClick,
+            linkPreviews = linkPreviews,
+            onRequestLinkPreview = onRequestLinkPreview,
             modifier = Modifier.graphicsLayer { translationX = clampedOffset },
         )
 
@@ -759,11 +944,13 @@ private fun MessageItem(
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .clickable { onReact(emoji) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.clickable { onReact(emoji) },
                     ) {
-                        Text(text = emoji, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = emoji,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
                     }
                 }
             }
@@ -779,6 +966,8 @@ private fun MessageBubble(
     reactionCounts: Map<String, Int>,
     onImageClick: (String) -> Unit,
     onVideoClick: (String) -> Unit,
+    linkPreviews: Map<String, LinkPreviewDto>,
+    onRequestLinkPreview: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bubbleColor = if (message.isMine) {
@@ -815,8 +1004,16 @@ private fun MessageBubble(
     fun openMedia(url: String, mime: String?) {
         runCatching {
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse(url)
-                if (mime != null) setDataAndType(data, mime)
+                setDataAndType(Uri.parse(url), mime ?: "*/*")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    fun openUrl(url: String) {
+        runCatching {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
@@ -836,21 +1033,20 @@ private fun MessageBubble(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 18.dp,
-                        topEnd = 18.dp,
-                        bottomStart = if (message.isMine) 18.dp else 4.dp,
-                        bottomEnd = if (message.isMine) 4.dp else 18.dp,
-                    )
-                )
-                .background(bubbleColor)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+        Surface(
+            color = bubbleColor,
+            shape = RoundedCornerShape(
+                topStart = 18.dp,
+                topEnd = 18.dp,
+                bottomStart = if (message.isMine) 18.dp else 4.dp,
+                bottomEnd = if (message.isMine) 4.dp else 18.dp,
+            ),
+            modifier = Modifier.widthIn(max = 280.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                modifier = Modifier.padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 if (replyMessage != null) {
                     Surface(
                         color = replyBackground,
@@ -873,11 +1069,26 @@ private fun MessageBubble(
                     }
                 }
                 when (message.type) {
-                    "text" -> Text(
-                        text = message.content ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = textColor,
-                    )
+                    "text" -> {
+                        Text(
+                            text = message.content ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = textColor,
+                        )
+                        val candidate = remember(message.content) { extractFirstUrl(message.content) }
+                        val normalized = remember(candidate) { candidate?.let { normalizeUrl(it) } }
+                        if (candidate != null && normalized != null && shouldPreviewLink(candidate, message.content)) {
+                            LaunchedEffect(normalized) { onRequestLinkPreview(normalized) }
+                            val preview = linkPreviews[normalized]
+                            if (preview != null) {
+                                LinkPreviewCard(
+                                    preview = preview,
+                                    isMine = message.isMine,
+                                    onClick = { openUrl(preview.url) },
+                                )
+                            }
+                        }
+                    }
                     "image" -> {
                         if (message.mediaUrl != null) {
                             AsyncImage(
@@ -942,6 +1153,21 @@ private fun MessageBubble(
                             )
                         }
                     }
+                    else -> {
+                        Text(
+                            text = message.content ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = textColor,
+                        )
+                    }
+                }
+                val caption = message.content?.takeIf { it.isNotBlank() }
+                if (message.type != "text" && !caption.isNullOrBlank()) {
+                    Text(
+                        text = caption,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                    )
                 }
             }
         }
@@ -968,7 +1194,6 @@ private fun MessageBubble(
             }
         }
 
-        // Status indicators for own messages
         if (message.isMine) {
             val (icon, tint) = when {
                 message.readAt != null -> Icons.Rounded.DoneAll to MaterialTheme.colorScheme.primary
@@ -1055,21 +1280,41 @@ private fun formatDuration(ms: Long): String {
     return String.format(Locale.US, "%d:%02d", minutes, seconds)
 }
 
+private data class AttachmentItem(
+    val icon: ImageVector,
+    val label: String,
+    val onClick: () -> Unit,
+)
+
 @Composable
-private fun AttachmentAction(
+private fun AttachmentActionCard(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onClick) {
-            Icon(icon, contentDescription = label)
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 104.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(30.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -1089,8 +1334,8 @@ private fun AudioPlayerBubble(
     var isPlaying by remember(url) { mutableStateOf(false) }
     var durationMs by remember(url) { mutableStateOf(0L) }
     var positionMs by remember(url) { mutableStateOf(0L) }
-    var waveformWidthPx by remember(url) { mutableStateOf(0) }
-    val waveformHeights = remember(url) { waveformHeights(url, 24) }
+    var sliderValue by remember(url) { mutableStateOf(0f) }
+    var isSeeking by remember(url) { mutableStateOf(false) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -1123,8 +1368,12 @@ private fun AudioPlayerBubble(
 
     val progress = if (durationMs > 0L) positionMs / durationMs.toFloat() else 0f
     val onSurfaceColor = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    val trackColor = if (isMine) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-    val activeColor = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+
+    LaunchedEffect(progress) {
+        if (!isSeeking) {
+            sliderValue = progress.coerceIn(0f, 1f)
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -1144,28 +1393,20 @@ private fun AudioPlayerBubble(
                     tint = onSurfaceColor,
                 )
             }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 28.dp)
-                    .padding(horizontal = 6.dp)
-                    .onSizeChanged { waveformWidthPx = it.width }
-                    .pointerInput(durationMs, waveformWidthPx) {
-                        detectTapGestures { offset ->
-                            if (durationMs > 0L && waveformWidthPx > 0) {
-                                val ratio = (offset.x / waveformWidthPx).coerceIn(0f, 1f)
-                                player.seekTo((durationMs * ratio).toLong())
-                            }
-                        }
-                    },
-            ) {
-                WaveformProgressBar(
-                    progress = progress.coerceIn(0f, 1f),
-                    barHeights = waveformHeights,
-                    activeColor = activeColor,
-                    inactiveColor = trackColor,
-                )
-            }
+            Slider(
+                value = sliderValue,
+                onValueChange = {
+                    isSeeking = true
+                    sliderValue = it
+                },
+                onValueChangeFinished = {
+                    isSeeking = false
+                    if (durationMs > 0L) {
+                        player.seekTo((durationMs * sliderValue).toLong())
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            )
             Text(
                 text = formatPlaybackTime(positionMs),
                 style = MaterialTheme.typography.labelSmall,
@@ -1279,70 +1520,251 @@ private fun DocumentAttachment(
     val info = documentInfo(mimeType, url)
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable { onOpen() }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .clickable(onClick = onOpen)
+            .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(info.icon, contentDescription = info.label)
-        Text(
-            text = info.label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-private data class DocumentInfo(
-    val label: String,
-    val icon: ImageVector,
-)
-
-private fun documentInfo(mimeType: String?, url: String?): DocumentInfo {
-    val mime = mimeType?.lowercase().orEmpty()
-    return when {
-        mime == "application/pdf" || url?.endsWith(".pdf", true) == true -> {
-            DocumentInfo("PDF", Icons.Rounded.PictureAsPdf)
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Icon(
+                imageVector = info.icon,
+                contentDescription = null,
+                modifier = Modifier.padding(8.dp),
+            )
         }
-        mime == "application/msword" || mime.contains("wordprocessingml") || url?.endsWith(".doc", true) == true || url?.endsWith(".docx", true) == true -> {
-            DocumentInfo("Word", Icons.AutoMirrored.Rounded.Article)
-        }
-        mime == "text/plain" || url?.endsWith(".txt", true) == true -> {
-            DocumentInfo("Text", Icons.Rounded.Description)
-        }
-        else -> DocumentInfo("Document", Icons.AutoMirrored.Rounded.InsertDriveFile)
-    }
-}
-
-@Composable
-private fun WaveformProgressBar(
-    progress: Float,
-    barHeights: List<Float>,
-    activeColor: Color,
-    inactiveColor: Color,
-) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        if (barHeights.isEmpty()) return@Canvas
-        val barCount = barHeights.size
-        val totalBars = barCount.toFloat()
-        val barWidth = size.width / (totalBars * 1.6f)
-        val gap = barWidth * 0.6f
-        val maxHeight = size.height
-        barHeights.forEachIndexed { index, heightFactor ->
-            val left = index * (barWidth + gap)
-            val barHeight = (maxHeight * heightFactor).coerceAtLeast(maxHeight * 0.25f)
-            val top = (maxHeight - barHeight) / 2f
-            val color = if (index / totalBars <= progress) activeColor else inactiveColor
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(left, top),
-                size = Size(barWidth, barHeight),
-                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = info.label,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = url,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
+}
+
+private data class DocumentMeta(val label: String, val icon: ImageVector)
+
+private fun documentInfo(mimeType: String?, url: String?): DocumentMeta {
+    val mime = mimeType?.lowercase().orEmpty()
+    return when {
+        mime.contains("pdf") || url?.endsWith(".pdf", true) == true ->
+            DocumentMeta("PDF", Icons.Rounded.PictureAsPdf)
+        mime == "application/msword" || mime.contains("wordprocessingml") ||
+            url?.endsWith(".doc", true) == true || url?.endsWith(".docx", true) == true ->
+            DocumentMeta("Word", Icons.AutoMirrored.Rounded.Article)
+        mime == "text/plain" || url?.endsWith(".txt", true) == true ->
+            DocumentMeta("Text", Icons.Rounded.Description)
+        else -> DocumentMeta("Document", Icons.AutoMirrored.Rounded.InsertDriveFile)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MessageSearchSheet(
+    members: List<ConversationMemberEntity>,
+    results: List<MessageDto>,
+    isSearching: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onSearch: (String) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Search messages",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Search") },
+                placeholder = { Text("Type a keyword") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = { onSearch(query) },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    IconButton(onClick = { onSearch(query) }) {
+                        Icon(Icons.Rounded.Search, contentDescription = "Search")
+                    }
+                },
+            )
+
+            when {
+                isSearching -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                }
+                errorMessage != null -> {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                results.isEmpty() -> {
+                    Text(
+                        text = if (query.isBlank()) "Enter a keyword to search." else "No results.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp),
+                    ) {
+                        items(results, key = { it.id }) { result ->
+                            val senderName = members.firstOrNull { it.userId == result.senderId }?.displayName
+                                ?: "Unknown"
+                            val preview = searchPreview(result)
+                            val time = formatCreatedAt(result.createdAt)
+                            ListItem(
+                                headlineContent = {
+                                    Text(preview, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = listOfNotNull(senderName, time).joinToString(" • "),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                            )
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EmojiPickerSheet(
+    onDismiss: () -> Unit,
+    onEmojiSelected: (String) -> Unit,
+    onBackspace: () -> Unit,
+    onShowKeyboard: () -> Unit,
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var pickerView by remember { mutableStateOf<EmojiPickerView?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 360.dp, max = 520.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "Emoji",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+                IconButton(onClick = onShowKeyboard) {
+                    Icon(Icons.Rounded.Keyboard, contentDescription = "Show keyboard")
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { value ->
+                        searchQuery = value
+                        pickerView?.let { updateEmojiSearch(it, value) }
+                    },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Search emoji") },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Search, contentDescription = null)
+                    },
+                    singleLine = true,
+                )
+                IconButton(onClick = onBackspace) {
+                    Icon(Icons.AutoMirrored.Rounded.Backspace, contentDescription = "Backspace")
+                }
+            }
+            AndroidView(
+                factory = { ctx ->
+                    EmojiPickerView(ctx).apply {
+                        setOnEmojiPickedListener { item ->
+                            onEmojiSelected(item.emoji)
+                        }
+                        pickerView = this
+                        updateEmojiSearch(this, searchQuery)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = true),
+            )
+        }
+    }
+}
+
+private fun updateEmojiSearch(view: EmojiPickerView, query: String) {
+    val method = view.javaClass.methods.firstOrNull { method ->
+        val name = method.name
+        val paramTypes = method.parameterTypes
+        val acceptsQuery = paramTypes.size == 1 &&
+            (paramTypes[0] == String::class.java || CharSequence::class.java.isAssignableFrom(paramTypes[0]))
+        acceptsQuery && name in setOf("setSearchQuery", "setSearchText", "setQuery", "setSearchTerm")
+    }
+    if (method != null) {
+        runCatching { method.invoke(view, query) }
+    }
+}
+
+private fun removeLastGlyph(text: String): String {
+    if (text.isEmpty()) return text
+    val end = text.length
+    val count = text.codePointCount(0, end)
+    if (count <= 0) return ""
+    val newEnd = text.offsetByCodePoints(0, count - 1)
+    return text.substring(0, newEnd)
 }
 
 private fun waveformHeights(seed: String, count: Int): List<Float> {
@@ -1371,3 +1793,143 @@ private fun formatPlaybackTime(ms: Long): String {
     val seconds = totalSeconds % 60
     return String.format(Locale.US, "%d:%02d", minutes, seconds)
 }
+
+private fun formatLastSeen(epochMs: Long): String {
+    val zoned = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
+    val today = java.time.LocalDate.now(zoned.zone)
+    return if (zoned.toLocalDate() == today) {
+        zoned.format(DateTimeFormatter.ofPattern("HH:mm"))
+    } else {
+        zoned.format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
+    }
+}
+
+private fun formatCreatedAt(createdAt: String): String {
+    return runCatching {
+        val zoned = Instant.parse(createdAt).atZone(ZoneId.systemDefault())
+        zoned.format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
+    }.getOrElse { "" }
+}
+
+@Composable
+private fun LinkPreviewCard(
+    preview: LinkPreviewDto,
+    isMine: Boolean,
+    onClick: () -> Unit,
+) {
+    val containerColor = if (isMine) {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val textColor = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val title = preview.title?.trim().orEmpty()
+    val description = preview.description?.trim().orEmpty()
+    val siteName = preview.siteName?.trim().orEmpty()
+
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (!preview.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = preview.imageUrl,
+                    contentDescription = preview.title ?: "Link preview",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                if (title.isNotEmpty()) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (description.isNotEmpty()) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textColor.copy(alpha = 0.8f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (siteName.isNotEmpty()) {
+                    Text(
+                        text = siteName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textColor.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun searchPreview(message: MessageDto): String {
+    val content = message.content?.trim().orEmpty()
+    if (content.isNotEmpty()) return content
+    return when (message.type) {
+        "image" -> "Photo"
+        "video" -> "Video"
+        "audio" -> "Audio"
+        "document" -> "Document"
+        else -> "Message"
+    }
+}
+
+private fun emojiForInsert(emoji: String): String {
+    return EmojiCompat.get().process(emoji).toString()
+}
+
+private fun cacheBitmap(bitmap: Bitmap, cacheDir: File): Uri? {
+    return try {
+        val file = File(cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+        }
+        Uri.fromFile(file)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun extractFirstUrl(text: String?): String? {
+    if (text.isNullOrBlank()) return null
+    val regex = Regex("""((https?://)?([A-Za-z0-9-]+\.)+[A-Za-z]{2,}[^\s]*)""")
+    val match = regex.find(text) ?: return null
+    return match.value.trim().trimEnd('.', ',', '!', '?', ')', ']', '}', '"', '\'')
+}
+
+private fun normalizeUrl(raw: String): String {
+    return if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) {
+        raw
+    } else {
+        "https://$raw"
+    }
+}
+
+private fun shouldPreviewLink(url: String, fullText: String?): Boolean {
+    val trimmed = fullText?.trim().orEmpty()
+    val cleaned = url.trim().trimEnd('.', ',', '!', '?', ')', ']', '}', '"', '\'')
+    val hasScheme = cleaned.startsWith("http://", true) || cleaned.startsWith("https://", true)
+    val hasWww = cleaned.startsWith("www.", true)
+    return hasScheme || hasWww || trimmed.equals(cleaned, ignoreCase = false)
+}
+

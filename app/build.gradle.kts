@@ -120,6 +120,11 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.google.firebase.messaging)
 
+    // EmojiCompat
+    implementation(libs.androidx.emoji2)
+    implementation(libs.androidx.emoji2.bundled)
+    implementation(libs.androidx.emoji2.picker)
+
     // WorkManager
     implementation(libs.androidx.work.runtime)
 

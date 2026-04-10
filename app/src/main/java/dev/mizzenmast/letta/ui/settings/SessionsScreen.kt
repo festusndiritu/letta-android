@@ -87,33 +87,44 @@ fun SessionsScreen(
                 )
             }
 
-            items(sessions, key = { it.id }) { session ->
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            session.deviceName ?: "Unknown device",
-                            fontWeight = FontWeight.Medium,
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            if (session.isCurrent) "This device" else "Last active ${session.lastActiveAt.take(10)}",
-                            color = if (session.isCurrent) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(Icons.Rounded.PhoneAndroid, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    },
-                    trailingContent = {
-                        if (!session.isCurrent) {
-                            TextButton(onClick = { viewModel.revoke(session.id) }) {
-                                Text("Revoke", color = MaterialTheme.colorScheme.error)
+            if (sessions.isEmpty()) {
+                item {
+                    Text(
+                        "No other active sessions.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                    )
+                }
+            } else {
+                items(sessions, key = { it.id }) { session ->
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                session.deviceName ?: "Unknown device",
+                                fontWeight = FontWeight.Medium,
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                if (session.isCurrent) "This device" else "Last active ${session.lastActiveAt.take(10)}",
+                                color = if (session.isCurrent) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(Icons.Rounded.PhoneAndroid, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        },
+                        trailingContent = {
+                            if (!session.isCurrent) {
+                                TextButton(onClick = { viewModel.revoke(session.id) }) {
+                                    Text("Revoke", color = MaterialTheme.colorScheme.error)
+                                }
                             }
-                        }
-                    },
-                )
-                HorizontalDivider()
+                        },
+                    )
+                    HorizontalDivider()
+                }
             }
         }
     }

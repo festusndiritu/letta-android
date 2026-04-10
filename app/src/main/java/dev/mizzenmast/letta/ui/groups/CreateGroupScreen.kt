@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -60,7 +62,7 @@ class CreateGroupViewModel @Inject constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CreateGroupScreen(
     onGroupCreated: (String) -> Unit,
@@ -120,11 +122,17 @@ fun CreateGroupScreen(
 
             if (selected.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "Selected: ${selected.joinToString { it.displayName }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    selected.forEach { user ->
+                        AssistChip(
+                            onClick = { viewModel.toggleUser(user) },
+                            label = { Text(user.displayName) },
+                        )
+                    }
+                }
             }
 
             LazyColumn {

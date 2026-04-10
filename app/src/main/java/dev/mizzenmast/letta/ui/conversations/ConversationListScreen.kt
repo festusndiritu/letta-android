@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
@@ -23,6 +24,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dev.mizzenmast.letta.data.local.entity.ConversationEntity
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 enum class ConversationFilter { All, Chats, Groups }
 
@@ -96,17 +100,28 @@ fun ConversationListScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Chat,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp),
+                    )
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         title,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onNewConversation) {
+                        Text("Start a conversation")
+                    }
                 }
             }
         } else {
@@ -200,8 +215,10 @@ private fun ConversationItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val previewText = conversation.lastMessageContent
+                    ?: if (conversation.lastMessageAt != null) "Message" else "No messages yet"
                 Text(
-                    text = conversation.lastMessageContent ?: "No messages yet",
+                    text = previewText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                         alpha = if (conversation.lastMessageContent != null) 0.8f else 0.4f
@@ -213,7 +230,8 @@ private fun ConversationItem(
                 if (conversation.unreadCount > 0) {
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
+                            .height(20.dp)
+                            .widthIn(min = 20.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center,
@@ -223,6 +241,7 @@ private fun ConversationItem(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp),
                         )
                     }
                 }
@@ -233,9 +252,14 @@ private fun ConversationItem(
 
 private fun formatTime(isoString: String): String {
     return try {
-        val parts = isoString.split("T")
-        if (parts.size < 2) return ""
-        val time = parts[1].take(5) // HH:mm
-        time
-    } catch (_: Exception) { "" }
+        val parsed = OffsetDateTime.parse(isoString)
+        val today = LocalDate.now(parsed.offset)
+        if (parsed.toLocalDate() == today) {
+            parsed.format(DateTimeFormatter.ofPattern("HH:mm"))
+        } else {
+            parsed.format(DateTimeFormatter.ofPattern("MMM d"))
+        }
+    } catch (_: Exception) {
+        ""
+    }
 }

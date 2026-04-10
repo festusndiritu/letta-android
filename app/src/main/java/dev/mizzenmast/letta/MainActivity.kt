@@ -10,11 +10,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import dev.mizzenmast.letta.core.navigation.LettaNavGraph
 import dev.mizzenmast.letta.core.theme.LettaPreset
 import dev.mizzenmast.letta.core.theme.LettaTheme
+import dev.mizzenmast.letta.data.local.SettingsStore
 import dev.mizzenmast.letta.data.local.TokenStore
 import dev.mizzenmast.letta.data.repository.AuthRepository
 import com.google.firebase.messaging.FirebaseMessaging
@@ -27,6 +29,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var tokenStore: TokenStore
     @Inject lateinit var authRepository: AuthRepository
+    @Inject lateinit var settingsStore: SettingsStore
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -58,8 +61,9 @@ class MainActivity : ComponentActivity() {
         val launchConversationId = intent?.getStringExtra(EXTRA_CONVERSATION_ID)
 
         setContent {
-            // TODO: read from DataStore for persistence
-            var preset by remember { mutableStateOf(LettaPreset.DEFAULT) }
+            val preset by settingsStore.themePresetFlow.collectAsStateWithLifecycle(
+                initialValue = LettaPreset.DEFAULT,
+            )
             val navController = rememberNavController()
 
             LettaTheme(preset = preset) {

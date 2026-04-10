@@ -6,7 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.mizzenmast.letta.data.local.TokenStore
 import dev.mizzenmast.letta.data.local.dao.MessageDao
 import dev.mizzenmast.letta.data.repository.ConversationRepository
+import dev.mizzenmast.letta.data.repository.MetaRepository
 import dev.mizzenmast.letta.service.WebSocketManager
+import dev.mizzenmast.letta.data.remote.dto.LinkPreviewDto
+import dev.mizzenmast.letta.data.remote.dto.MessageDto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +35,7 @@ class ChatViewModel @Inject constructor(
     private val tokenStore: TokenStore,
     private val messageDao: MessageDao,
     private val mediaRepository: dev.mizzenmast.letta.data.repository.MediaRepository,
+    private val metaRepository: MetaRepository,
 ) : ViewModel() {
 
     private val _conversationId = MutableStateFlow("")
@@ -40,6 +44,23 @@ class ChatViewModel @Inject constructor(
 
     private val _reactions = MutableStateFlow<Map<String, Map<String, String>>>(emptyMap())
     val reactions: StateFlow<Map<String, Map<String, String>>> = _reactions
+
+    private val _linkPreviews = MutableStateFlow<Map<String, LinkPreviewDto>>(emptyMap())
+    val linkPreviews: StateFlow<Map<String, LinkPreviewDto>> = _linkPreviews
+
+    private val _previewRequests = MutableStateFlow<Set<String>>(emptySet())
+
+    private val _searchResults = MutableStateFlow<List<MessageDto>>(emptyList())
+    val searchResults: StateFlow<List<MessageDto>> = _searchResults
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching
+
+    private val _searchError = MutableStateFlow<String?>(null)
+    val searchError: StateFlow<String?> = _searchError
+
+    val presence: StateFlow<Map<String, Boolean>> = wsManager.presence
+    val lastSeen: StateFlow<Map<String, Long>> = wsManager.lastSeen
 
     val currentUserId: String? = tokenStore.userId
 
@@ -137,7 +158,11 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun uploadAndSendMedia(uri: android.net.Uri, mimeTypeOverride: String? = null) {
+    fun uploadAndSendMedia(
+        uri: android.net.Uri,
+        mimeTypeOverride: String? = null,
+        caption: String? = null,
+    ) {
         val conversationId = _conversationId.value
         if (conversationId.isEmpty()) return
         _uiState.update { it.copy(isUploadingMedia = true, mediaError = null) }
@@ -153,6 +178,7 @@ class ChatViewModel @Inject constructor(
                     wsManager.sendMessage(
                         conversationId = conversationId,
                         type = type,
+                        content = caption?.takeIf { it.isNotBlank() },
                         mediaUrl = media.url,
                         mediaMime = media.mimeType,
                     )
@@ -175,5 +201,55 @@ class ChatViewModel @Inject constructor(
 
     fun setMediaError(message: String) {
         _uiState.update { it.copy(mediaError = message) }
+    }
+
+    fun requestLinkPreview(url: String) {
+        if (_linkPreviews.value.containsKey(url) || _previewRequests.value.contains(url)) return
+        _previewRequests.update { it + url }
+        viewModelScope.launch {
+            metaRepository.getPreview(url)
+                .onSuccess { preview ->
+                    _linkPreviews.update { it + (url to preview) }
+                }
+                .also {
+                    _previewRequests.update { it - url }
+                }
+        }
+    }
+
+    fun searchMessages(query: String, limit: Int = 30) {
+        val conversationId = _conversationId.value
+        if (conversationId.isEmpty()) return
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            _searchError.value = null
+            _isSearching.value = false
+            return
+        }
+        _isSearching.value = true
+        _searchError.value = null
+        viewModelScope.launch {
+            repository.searchMessages(conversationId, query.trim(), limit)
+                .onSuccess { _searchResults.value = it }
+                .onFailure { _searchError.value = it.message ?: "Search failed" }
+            _isSearching.value = false
+        }
+    }
+
+    fun clearSearchResults() {
+        _searchResults.value = emptyList()
+        _searchError.value = null
+    }
+
+    fun muteConversation(duration: String) {
+        val conversationId = _conversationId.value
+        if (conversationId.isEmpty()) return
+        viewModelScope.launch { repository.muteConversation(conversationId, duration) }
+    }
+
+    fun unmuteConversation() {
+        val conversationId = _conversationId.value
+        if (conversationId.isEmpty()) return
+        viewModelScope.launch { repository.unmuteConversation(conversationId) }
     }
 }

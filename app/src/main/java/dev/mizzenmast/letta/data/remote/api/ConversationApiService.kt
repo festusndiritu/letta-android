@@ -10,10 +10,13 @@ import dev.mizzenmast.letta.data.remote.dto.MessageDto
 import dev.mizzenmast.letta.data.remote.dto.MuteRequest
 import dev.mizzenmast.letta.data.remote.dto.PublicUserDto
 import dev.mizzenmast.letta.data.remote.dto.ReactionRequest
+import dev.mizzenmast.letta.data.remote.dto.VotePollRequest
+import dev.mizzenmast.letta.data.remote.dto.PinMessageRequest
 import dev.mizzenmast.letta.data.remote.dto.SessionDto
 import dev.mizzenmast.letta.data.remote.dto.AddMembersRequest
 import dev.mizzenmast.letta.data.remote.dto.RemoveMemberRequest
 import dev.mizzenmast.letta.data.remote.dto.UpdateConversationRequest
+import dev.mizzenmast.letta.data.remote.dto.BlockUserRequest
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -73,6 +76,15 @@ interface ConversationApiService {
         @Body body: ReactionRequest,
     )
 
+    @POST("messages/{id}/vote")
+    suspend fun voteOnPoll(
+        @Path("id") messageId: String,
+        @Body body: VotePollRequest,
+    )
+
+    @DELETE("messages/{id}")
+    suspend fun deleteMessage(@Path("id") messageId: String)
+
     @GET("conversations/{id}")
     suspend fun getConversation(@Path("id") conversationId: String): ConversationDto
 
@@ -93,4 +105,32 @@ interface ConversationApiService {
         @Path("id") conversationId: String,
         @Body body: RemoveMemberRequest,
     )
+
+    @GET("conversations/{id}/messages/search")
+    suspend fun searchMessages(
+        @Path("id") conversationId: String,
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 30,
+    ): List<MessageDto>
+
+    @POST("conversations/{id}/pins")
+    suspend fun pinMessage(
+        @Path("id") conversationId: String,
+        @Body body: PinMessageRequest,
+    )
+
+    @DELETE("conversations/{id}/pins/{messageId}")
+    suspend fun unpinMessage(
+        @Path("id") conversationId: String,
+        @Path("messageId") messageId: String,
+    )
+
+    @GET("conversations/{id}/pins")
+    suspend fun getPinnedMessages(@Path("id") conversationId: String): List<MessageDto>
+
+    @POST("contacts/block")
+    suspend fun blockUser(@Body body: BlockUserRequest)
+
+    @POST("contacts/unblock")
+    suspend fun unblockUser(@Body body: BlockUserRequest)
 }

@@ -31,6 +31,10 @@ data class MessageDto(
     @SerialName("media_url") val mediaUrl: String? = null,
     @SerialName("media_mime") val mediaMime: String? = null,
     @SerialName("reply_to_id") val replyToId: String? = null,
+    @SerialName("poll_data") val pollData: String? = null,
+    @SerialName("reactions") val reactions: Map<String, Int> = emptyMap(),
+    @SerialName("my_reaction") val myReaction: String? = null,
+    @SerialName("deleted_at") val deletedAt: String? = null,
     @SerialName("created_at") val createdAt: String,
 )
 
@@ -87,6 +91,7 @@ data class SendMessagePayload(
     @SerialName("media_url") val mediaUrl: String? = null,
     @SerialName("media_mime") val mediaMime: String? = null,
     @SerialName("reply_to_id") val replyToId: String? = null,
+    @SerialName("poll_data") val pollData: String? = null,
 )
 
 @Serializable
@@ -114,6 +119,16 @@ data class ReactionRequest(
 )
 
 @Serializable
+data class VotePollRequest(
+    @SerialName("option_indices") val optionIndices: List<Int>,
+)
+
+@Serializable
+data class PinMessageRequest(
+    @SerialName("message_id") val messageId: String,
+)
+
+@Serializable
 data class UpdateConversationRequest(
     @SerialName("name") val name: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
@@ -128,3 +143,41 @@ data class AddMembersRequest(
 data class RemoveMemberRequest(
     @SerialName("user_id") val userId: String,
 )
+
+
+@Serializable
+data class BlockUserRequest(
+    @SerialName("user_id") val userId: String,
+)
+
+@Serializable
+data class StatusDto(
+    @SerialName("id") val id: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("type") val type: String,
+    @SerialName("content") val content: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("bg_color") val bgColor: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+data class CreateStatusRequest(
+    @SerialName("type") val type: String,
+    @SerialName("content") val content: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("bg_color") val bgColor: String? = null,
+)
+
+@Serializable
+data class CallDto(
+    @SerialName("id") val id: String,
+    @SerialName("conversation_id") val conversationId: String? = null,
+    @SerialName("caller_id") val callerId: String? = null,
+    @SerialName("callee_id") val calleeId: String? = null,
+    @SerialName("type") val type: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("ended_at") val endedAt: String? = null,
+    @SerialName("status") val status: String? = null,
+)
+

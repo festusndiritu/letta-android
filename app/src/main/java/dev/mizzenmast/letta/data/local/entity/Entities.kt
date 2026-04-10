@@ -53,9 +53,45 @@ data class MessageEntity(
     val replyToId: String?,
     val replyToContent: String?,
     val replyToSenderName: String?,
+    val pollData: String?,
+    val reactionsJson: String?,
+    val myReaction: String?,
+    val deletedAt: String?,
     val createdAt: String,
     val deliveredAt: String? = null,
     val readAt: String? = null,
     val isMine: Boolean,
     val isPending: Boolean = false, // true while sending
+)
+
+@Entity(tableName = "pinned_messages")
+data class PinnedMessageEntity(
+    @PrimaryKey val id: String, // conversationId_messageId
+    val conversationId: String,
+    val messageId: String,
+    val pinnedAt: String? = null,
+)
+
+@Entity(tableName = "statuses")
+data class StatusEntity(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val type: String,
+    val content: String?,
+    val mediaUrl: String?,
+    val bgColor: String?,
+    val createdAt: String?,
+    val isMine: Boolean,
+)
+
+@Entity(tableName = "calls")
+data class CallEntity(
+    @PrimaryKey val id: String,
+    val conversationId: String?,
+    val callerId: String?,
+    val calleeId: String?,
+    val type: String?,
+    val createdAt: String?,
+    val endedAt: String?,
+    val status: String?,
 )

@@ -9,6 +9,9 @@ import dev.mizzenmast.letta.data.remote.AuthInterceptor
 import dev.mizzenmast.letta.data.remote.api.AuthApiService
 import dev.mizzenmast.letta.data.remote.api.ConversationApiService
 import dev.mizzenmast.letta.data.remote.api.MediaApiService
+import dev.mizzenmast.letta.data.remote.api.MetaApiService
+import dev.mizzenmast.letta.data.remote.api.StatusApiService
+import dev.mizzenmast.letta.data.remote.api.CallApiService
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -74,4 +77,19 @@ object NetworkModule {
     @Singleton
     fun provideMediaApiService(retrofit: Retrofit): MediaApiService =
         retrofit.create(MediaApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMetaApiService(retrofit: Retrofit): MetaApiService =
+        retrofit.create(MetaApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideStatusApiService(retrofit: Retrofit): StatusApiService =
+        retrofit.create(StatusApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCallApiService(retrofit: Retrofit): CallApiService =
+        retrofit.create(CallApiService::class.java)
 }
