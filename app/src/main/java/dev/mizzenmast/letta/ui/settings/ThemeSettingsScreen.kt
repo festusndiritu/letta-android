@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -34,25 +33,37 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.mizzenmast.letta.core.theme.FontChoice
+import dev.mizzenmast.letta.core.theme.DuskBase
+import dev.mizzenmast.letta.core.theme.EmberBase
+import dev.mizzenmast.letta.core.theme.LapisBase
 import dev.mizzenmast.letta.core.theme.LettaPreset
-import dev.mizzenmast.letta.core.theme.fontFamilyFor
-import dev.mizzenmast.letta.core.theme.lettaTypography
-import dev.mizzenmast.letta.core.theme.lightScheme
-import dev.mizzenmast.letta.core.theme.presetColors
-import dev.mizzenmast.letta.core.theme.presetFonts
+import dev.mizzenmast.letta.core.theme.MonoBase
+import dev.mizzenmast.letta.core.theme.SageBase
+import dev.mizzenmast.letta.core.theme.SlateBase
 import dev.mizzenmast.letta.data.local.SettingsStore
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/** Accent color swatch shown in each preset card. */
+private val presetAccent: Map<LettaPreset, Color> = mapOf(
+    LettaPreset.LAPIS   to LapisBase,
+    LettaPreset.DUSK    to DuskBase,
+    LettaPreset.SAGE    to SageBase,
+    LettaPreset.SLATE   to SlateBase,
+    LettaPreset.EMBER   to EmberBase,
+    LettaPreset.MONO    to MonoBase,
+    LettaPreset.DYNAMIC to Color(0xFF6750A4), // Material You fallback
+)
 
 @HiltViewModel
 class ThemeSettingsViewModel @Inject constructor(
@@ -75,7 +86,7 @@ class ThemeSettingsViewModel @Inject constructor(
 }
 
 data class ThemeSettingsState(
-    val selectedPreset: LettaPreset = LettaPreset.DEFAULT,
+    val selectedPreset: LettaPreset = LettaPreset.LAPIS,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,7 +103,7 @@ fun ThemeSettingsScreen(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
                 title = { Text("Appearance", fontWeight = FontWeight.SemiBold) },
             )
-        }
+        },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -108,38 +119,25 @@ fun ThemeSettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    "Preview and pick a preset.",
+                    "Pick a color preset. Font and bubble colors update automatically.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
+                Spacer(Modifier.height(8.dp))
             }
 
             items(LettaPreset.entries) { preset ->
-                val isSelected = state.selectedPreset == preset
                 ThemePresetCard(
                     preset = preset,
-                    isSelected = isSelected,
+                    isSelected = state.selectedPreset == preset,
                     onClick = { viewModel.selectPreset(preset) },
                 )
             }
 
             item {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "Font",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Font follows the selected theme preset.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                )
-                Spacer(Modifier.height(16.dp))
                 Text(
                     "Changes apply immediately across the app.",
                     style = MaterialTheme.typography.bodySmall,
@@ -156,10 +154,7 @@ private fun ThemePresetCard(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    val colors = presetColors[preset]!!
-    val fontChoice = presetFonts[preset] ?: FontChoice.DM_SANS
-    val typography = lettaTypography(fontFamilyFor(fontChoice))
-    val scheme = lightScheme(colors)
+    val accentColor = presetAccent[preset] ?: MaterialTheme.colorScheme.primary
 
     Card(
         modifier = Modifier
@@ -180,9 +175,9 @@ private fun ThemePresetCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .background(colors.primary),
+                    .background(accentColor),
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -192,38 +187,6 @@ private fun ThemePresetCard(
                     fontWeight = FontWeight.SemiBold,
                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
-                Spacer(Modifier.height(6.dp))
-                MaterialTheme(colorScheme = scheme, typography = typography) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "Preview text",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                        )
-                    }
-                }
             }
 
             if (isSelected) {

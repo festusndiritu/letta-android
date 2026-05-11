@@ -1,5 +1,5 @@
 [versions]
-agp = "9.1.0"
+agp = "9.1.1"
 kotlin = "2.3.20"
 coreKtx = "1.18.0"
 lifecycle = "2.10.0"
@@ -18,17 +18,16 @@ security = "1.1.0"
 splashscreen = "1.2.0"
 accompanist = "0.37.3"
 googleFonts = "1.10.6"
-firebase = "34.11.0"
-playServicesAuth = "21.2.0"
+firebase = "34.12.0"
 workManager = "2.11.2"
 hiltWork = "1.3.0"
 kotlinxSerialization = "1.10.0"
 converterKotlinxSerialization = "3.0.0"
 firebaseMessaging = "25.0.1"
 playServicesAuthApiPhone = "18.3.0"
-media3 = "1.5.1"
+media3 = "1.10.0"
 emoji2 = "1.6.0"
-emoji2Picker = "1.0.0-alpha03"
+emoji2Picker = "1.6.0"
 
 [libraries]
 # Core

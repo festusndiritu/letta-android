@@ -122,14 +122,14 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
+                .padding(dev.mizzenmast.letta.ui.components.LettaSpacing.extraLarge),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(dev.mizzenmast.letta.ui.components.LettaSpacing.extraLarge))
 
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(dev.mizzenmast.letta.ui.components.LettaSizes.avatarLarge + dev.mizzenmast.letta.ui.components.LettaSpacing.large)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
@@ -151,7 +151,7 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(dev.mizzenmast.letta.ui.components.LettaSpacing.large))
 
             Text(
                 text = user?.displayName ?: "",
@@ -160,7 +160,7 @@ fun ProfileScreen(
             )
 
             user?.bio?.let { bio ->
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(dev.mizzenmast.letta.ui.components.LettaSpacing.small))
                 Text(
                     text = bio,
                     style = MaterialTheme.typography.bodyMedium,
@@ -168,21 +168,21 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(dev.mizzenmast.letta.ui.components.LettaSpacing.huge))
 
             Button(
                 onClick = { viewModel.startChat(userId, onStartChat) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.AutoMirrored.Rounded.Message, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(dev.mizzenmast.letta.ui.components.LettaSpacing.small))
                 Text("Send message")
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             Text(
-                text = "Actions",
+                text = "Conversation",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.Start),
@@ -208,6 +208,36 @@ fun ProfileScreen(
                     )
                     HorizontalDivider()
                     ListItem(
+                        headlineContent = { Text("Notification settings") },
+                        supportingContent = { Text("Coming soon") },
+                        leadingContent = {
+                            Icon(Icons.Rounded.Notifications, contentDescription = null)
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Clear chat locally") },
+                        supportingContent = { Text("Removes messages from this device") },
+                        leadingContent = {
+                            Icon(Icons.Rounded.Delete, contentDescription = null)
+                        },
+                        modifier = Modifier.clickable { showClearChatConfirm = true },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = "Safety",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.Start),
+            )
+            Spacer(Modifier.height(8.dp))
+            Surface(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    ListItem(
                         headlineContent = { Text("Block user") },
                         supportingContent = { Text("They will not be able to message you") },
                         leadingContent = {
@@ -222,23 +252,6 @@ fun ProfileScreen(
                             Icon(Icons.Rounded.PersonOff, contentDescription = null)
                         },
                         modifier = Modifier.clickable { showUnblockConfirm = true },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text("Clear chat locally") },
-                        supportingContent = { Text("Removes messages from this device") },
-                        leadingContent = {
-                            Icon(Icons.Rounded.Delete, contentDescription = null)
-                        },
-                        modifier = Modifier.clickable { showClearChatConfirm = true },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text("Notification settings") },
-                        supportingContent = { Text("Coming soon") },
-                        leadingContent = {
-                            Icon(Icons.Rounded.Notifications, contentDescription = null)
-                        },
                     )
                 }
             }

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,18 +31,20 @@ fun SplashScreen(onComplete: () -> Unit) {
         onComplete()
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "Letta",
-            style = MaterialTheme.typography.displaySmall.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-1).sp,
-            ),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.alpha(alpha),
-        )
+    Surface {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Letta",
+                style = MaterialTheme.typography.displaySmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-1).sp,
+                ),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.alpha(alpha),
+            )
+        }
     }
 }

@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.mizzenmast.letta.data.local.TokenStore
+import dev.mizzenmast.letta.service.CallStateManager
 import dev.mizzenmast.letta.ui.SplashScreen
 import dev.mizzenmast.letta.ui.auth.AuthEvent
 import dev.mizzenmast.letta.ui.auth.AuthViewModel
@@ -39,6 +40,7 @@ fun LettaNavGraph(
     navController: NavHostController,
     tokenStore: TokenStore,
     startChatConversationId: String? = null,
+    callStateManager: CallStateManager? = null,
 ) {
     NavHost(
         navController = navController,
@@ -48,8 +50,10 @@ fun LettaNavGraph(
         composable(Route.Splash.path) {
             SplashScreen(
                 onComplete = {
-                    val dest = if (tokenStore.isLoggedIn()) Route.ConversationList.path
-                    else Route.PhoneEntry.path
+                    val dest = if (tokenStore.isLoggedIn())
+                        Route.ConversationList.path
+                    else
+                        Route.PhoneEntry.path
                     navController.navigate(dest) {
                         popUpTo(Route.Splash.path) { inclusive = true }
                     }

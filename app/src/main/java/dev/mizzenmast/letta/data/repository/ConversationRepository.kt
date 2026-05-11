@@ -26,6 +26,7 @@ import dev.mizzenmast.letta.data.remote.dto.UpdateConversationRequest
 import dev.mizzenmast.letta.data.remote.dto.PinMessageRequest
 import dev.mizzenmast.letta.data.remote.dto.VotePollRequest
 import dev.mizzenmast.letta.service.toEntity
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,6 +38,7 @@ class ConversationRepository @Inject constructor(
     private val messageDao: MessageDao,
     private val pinnedMessageDao: PinnedMessageDao,
     private val tokenStore: dev.mizzenmast.letta.data.local.TokenStore,
+    private val json: Json,
 ) {
     // ── Conversations ───────────────────────────────────────────────────────
 
@@ -125,6 +127,7 @@ class ConversationRepository @Inject constructor(
                     isMine = msg.senderId == currentUserId,
                     senderName = member?.displayName ?: "",
                     senderAvatar = member?.avatarUrl,
+                    json = json,
                 )
             })
             Result.success(messages)
@@ -148,6 +151,7 @@ class ConversationRepository @Inject constructor(
                         isMine = msg.senderId == currentUserId,
                         senderName = member?.displayName ?: "",
                         senderAvatar = member?.avatarUrl,
+                        json = json,
                     )
                 }
             }
@@ -256,6 +260,7 @@ class ConversationRepository @Inject constructor(
                     isMine = msg.senderId == currentUserId,
                     senderName = member?.displayName ?: "",
                     senderAvatar = member?.avatarUrl,
+                    json = json,
                 )
             })
             pinnedMessageDao.upsertAll(pinned.map { msg ->

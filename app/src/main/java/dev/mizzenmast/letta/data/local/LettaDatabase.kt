@@ -23,8 +23,8 @@ import dev.mizzenmast.letta.data.local.entity.UserEntity
         StatusEntity::class,
         CallEntity::class,
     ],
-    version = 2,
-    exportSchema = false,
+    version = 3,
+    exportSchema = false,  // Can enable this later with schema location
 )
 abstract class LettaDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao

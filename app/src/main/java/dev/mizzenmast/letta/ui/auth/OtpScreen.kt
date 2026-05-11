@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -83,9 +84,6 @@ fun OtpScreen(
     val error = uiState.error ?: localError
 
     // ── SMS Retriever ─────────────────────────────────────────────────────────
-    // The original code was missing the Status check — the broadcast always fires
-    // (even for unrelated intents) so without verifying SUCCESS it either crashes
-    // on a null extras cast or silently no-ops. Fixed below.
     DisposableEffect(Unit) {
         val client = SmsRetriever.getClient(context)
         client.startSmsRetriever()
@@ -167,14 +165,14 @@ fun OtpScreen(
                 localError = null
             }
         },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier
             .size(1.dp)
             .focusRequester(focusRequester),
         cursorBrush = SolidColor(Color.Transparent),
     )
 
-    Box(
+    Surface(
         modifier = Modifier
             .fillMaxSize()
             .clickable(

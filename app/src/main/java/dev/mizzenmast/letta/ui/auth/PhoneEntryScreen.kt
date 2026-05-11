@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -70,183 +71,191 @@ fun PhoneEntryScreen(
         focusRequester.requestFocus()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .imePadding()
-            .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.Start,
-    ) {
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+    Surface {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
+                .padding(horizontal = dev.mizzenmast.letta.ui.components.LettaSpacing.huge),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start,
         ) {
-            Column {
-                Text(
-                    text = "Letta",
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (-1).sp,
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                )
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+            ) {
+                Column {
+                    Text(
+                        text = "Letta",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = (-1).sp,
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Enter your phone number\nto get started.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 24.sp,
-                )
+                    Text(
+                        text = "Enter your phone number\nto get started.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 24.sp,
+                    )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(48.dp))
 
-                Text(
-                    text = "Phone number",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+                    Text(
+                        text = "Phone number",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    // Locked country code
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        contentAlignment = Alignment.Center,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text(
-                            text = "🇰🇪 +254",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
+                        // Locked country code
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "🇰🇪 +254",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+
+                        // Number input
+                        BasicTextField(
+                            value = localNumber,
+                            onValueChange = { new ->
+                                if (new.length <= 9 && new.all { it.isDigit() }) {
+                                    localNumber = new
+                                    localError = null
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done,
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (canSubmit) {
+                                        keyboard?.hide()
+                                        onRequestOtp(fullNumber)
+                                    }
+                                }
+                            ),
+                            singleLine = true,
+                            decorationBox = { innerTextField ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .border(
+                                            width = if (error != null) 2.dp else 1.dp,
+                                            color = when {
+                                                error != null -> MaterialTheme.colorScheme.error
+                                                localNumber.isNotEmpty() -> MaterialTheme.colorScheme.primary
+                                                else -> MaterialTheme.colorScheme.outline
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                        )
+                                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                                ) {
+                                    if (localNumber.isEmpty()) {
+                                        Text(
+                                            "712 345 678",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = 0.4f
+                                            ),
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
                         )
                     }
 
-                    // Number input
-                    BasicTextField(
-                        value = localNumber,
-                        onValueChange = { new ->
-                            if (new.length <= 9 && new.all { it.isDigit() }) {
-                                localNumber = new
-                                localError = null
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    if (error != null) {
+                        Text(
+                            error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    } else {
+                        Text(
+                            "Safaricom numbers only for now",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            keyboard?.hide()
+                            if (localNumber.length != 9) {
+                                localError = "Enter a 9-digit number e.g. 712345678"
+                            } else {
+                                onRequestOtp(fullNumber)
                             }
                         },
                         modifier = Modifier
-                            .weight(1f)
-                            .focusRequester(focusRequester),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        enabled = canSubmit,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
                         ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done,
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                if (canSubmit) {
-                                    keyboard?.hide()
-                                    onRequestOtp(fullNumber)
-                                }
-                            }
-                        ),
-                        singleLine = true,
-                        decorationBox = { innerTextField ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .border(
-                                        width = if (error != null) 2.dp else 1.dp,
-                                        color = when {
-                                            error != null -> MaterialTheme.colorScheme.error
-                                            localNumber.isNotEmpty() -> MaterialTheme.colorScheme.primary
-                                            else -> MaterialTheme.colorScheme.outline
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                            ) {
-                                if (localNumber.isEmpty()) {
-                                    Text(
-                                        "712 345 678",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                if (error != null) {
-                    Text(
-                        error,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                } else {
-                    Text(
-                        "Safaricom numbers only for now",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        keyboard?.hide()
-                        if (localNumber.length != 9) {
-                            localError = "Enter a 9-digit number e.g. 712345678"
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp),
+                            )
                         } else {
-                            onRequestOtp(fullNumber)
+                            Text("Continue", style = MaterialTheme.typography.labelLarge)
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    enabled = canSubmit,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    } else {
-                        Text("Continue", style = MaterialTheme.typography.labelLarge)
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "We'll send a verification code to this number.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "We'll send a verification code to this number.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }

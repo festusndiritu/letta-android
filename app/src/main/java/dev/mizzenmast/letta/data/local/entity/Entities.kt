@@ -1,6 +1,7 @@
 package dev.mizzenmast.letta.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "users")
@@ -28,7 +29,10 @@ data class ConversationEntity(
     val unreadCount: Int = 0,
 )
 
-@Entity(tableName = "conversation_members")
+@Entity(
+    tableName = "conversation_members",
+    indices = [Index(value = ["conversationId"]), Index(value = ["userId"])]
+)
 data class ConversationMemberEntity(
     @PrimaryKey(autoGenerate = false)
     val id: String, // conversationId_userId
@@ -39,7 +43,14 @@ data class ConversationMemberEntity(
     val role: String,
 )
 
-@Entity(tableName = "messages")
+@Entity(
+    tableName = "messages",
+    indices = [
+        Index(value = ["conversationId", "createdAt"]),
+        Index(value = ["senderId"]),
+        Index(value = ["isPending"])
+    ]
+)
 data class MessageEntity(
     @PrimaryKey val id: String,
     val conversationId: String,
@@ -64,7 +75,10 @@ data class MessageEntity(
     val isPending: Boolean = false, // true while sending
 )
 
-@Entity(tableName = "pinned_messages")
+@Entity(
+    tableName = "pinned_messages",
+    indices = [Index(value = ["conversationId"])]
+)
 data class PinnedMessageEntity(
     @PrimaryKey val id: String, // conversationId_messageId
     val conversationId: String,
@@ -72,7 +86,10 @@ data class PinnedMessageEntity(
     val pinnedAt: String? = null,
 )
 
-@Entity(tableName = "statuses")
+@Entity(
+    tableName = "statuses",
+    indices = [Index(value = ["userId", "createdAt"]), Index(value = ["isMine"])]
+)
 data class StatusEntity(
     @PrimaryKey val id: String,
     val userId: String,
@@ -84,7 +101,10 @@ data class StatusEntity(
     val isMine: Boolean,
 )
 
-@Entity(tableName = "calls")
+@Entity(
+    tableName = "calls",
+    indices = [Index(value = ["conversationId"]), Index(value = ["createdAt"])]
+)
 data class CallEntity(
     @PrimaryKey val id: String,
     val conversationId: String?,

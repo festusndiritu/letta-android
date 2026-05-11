@@ -42,7 +42,8 @@ object NetworkModule {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(
                         HttpLoggingInterceptor().apply {
-                            level = HttpLoggingInterceptor.Level.BODY
+                            // Use HEADERS instead of BODY to avoid logging sensitive data
+                            level = HttpLoggingInterceptor.Level.HEADERS
                         }
                     )
                 }

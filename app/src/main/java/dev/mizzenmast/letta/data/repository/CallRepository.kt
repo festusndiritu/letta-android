@@ -26,6 +26,14 @@ class CallRepository @Inject constructor(
         callDao.upsert(call)
     }
 
+    suspend fun clearCalls() {
+        callDao.clearAll()
+    }
+
+    suspend fun deleteCall(id: String) {
+        callDao.deleteById(id)
+    }
+
     private fun CallDto.toEntity(): CallEntity = CallEntity(
         id = id,
         conversationId = conversationId,

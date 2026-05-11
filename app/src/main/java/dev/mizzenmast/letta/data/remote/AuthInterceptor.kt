@@ -2,6 +2,8 @@ package dev.mizzenmast.letta.data.remote
 
 import dev.mizzenmast.letta.data.local.TokenStore
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -13,6 +15,8 @@ import javax.inject.Singleton
 class AuthInterceptor @Inject constructor(
     private val tokenStore: TokenStore,
 ) : Interceptor {
+
+    private val refreshMutex = Mutex()
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = tokenStore.accessToken
@@ -32,34 +36,42 @@ class AuthInterceptor @Inject constructor(
 
             response.close()
 
+            // Use mutex to prevent concurrent refresh attempts
             val newTokens = runBlocking {
-                try {
-                    // We can't inject AuthApiService here (circular dep) so we
-                    // make a raw OkHttp call for the refresh
-                    val refreshResponse = chain.proceed(
-                        chain.request().newBuilder()
-                            .url(chain.request().url.newBuilder()
-                                .encodedPath("/auth/refresh")
-                                .build())
-                            .post(
-                                """{"refresh_token":"$refreshToken"}"""
-                                    .toRequestBody(
-                                        "application/json"
-                                            .toMediaTypeOrNull()
-                                    )
-                            )
-                            .build()
-                    )
-                    if (refreshResponse.isSuccessful) {
-                        val body = refreshResponse.body.string()
-                        refreshResponse.close()
-                        body
-                    } else {
-                        refreshResponse.close()
+                refreshMutex.withLock {
+                    // Check if token was already refreshed by another thread
+                    if (tokenStore.accessToken != token) {
+                        return@withLock tokenStore.accessToken
+                    }
+
+                    try {
+                        // We can't inject AuthApiService here (circular dep) so we
+                        // make a raw OkHttp call for the refresh
+                        val refreshResponse = chain.proceed(
+                            chain.request().newBuilder()
+                                .url(chain.request().url.newBuilder()
+                                    .encodedPath("/auth/refresh")
+                                    .build())
+                                .post(
+                                    """{"refresh_token":"$refreshToken"}"""
+                                        .toRequestBody(
+                                            "application/json"
+                                                .toMediaTypeOrNull()
+                                        )
+                                )
+                                .build()
+                        )
+                        if (refreshResponse.isSuccessful) {
+                            val body = refreshResponse.body.string()
+                            refreshResponse.close()
+                            body
+                        } else {
+                            refreshResponse.close()
+                            null
+                        }
+                    } catch (e: Exception) {
                         null
                     }
-                } catch (e: Exception) {
-                    null
                 }
             }
 

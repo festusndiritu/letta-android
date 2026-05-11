@@ -50,6 +50,9 @@ interface ConversationDao {
     @Query("SELECT * FROM conversation_members WHERE conversationId = :conversationId")
     suspend fun getMembers(conversationId: String): List<ConversationMemberEntity>
 
+    @Query("SELECT * FROM conversation_members")
+    fun observeAllMembers(): Flow<List<ConversationMemberEntity>>
+
     @Query("""
         UPDATE conversations 
         SET lastMessageContent = :content, lastMessageAt = :at, lastMessageSenderId = :senderId
@@ -164,4 +167,10 @@ interface CallDao {
 
     @Query("SELECT * FROM calls ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<CallEntity>>
+
+    @Query("DELETE FROM calls")
+    suspend fun clearAll()
+
+    @Query("DELETE FROM calls WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

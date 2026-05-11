@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.mizzenmast.letta.data.local.LettaDatabase
+import dev.mizzenmast.letta.data.local.MIGRATION_2_3
 import dev.mizzenmast.letta.data.local.dao.ConversationDao
 import dev.mizzenmast.letta.data.local.dao.MessageDao
 import dev.mizzenmast.letta.data.local.dao.UserDao
@@ -24,7 +25,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LettaDatabase =
         Room.databaseBuilder(context, LettaDatabase::class.java, "letta.db")
-            .fallbackToDestructiveMigration(true)
+            .addMigrations(MIGRATION_2_3)
             .build()
 
     @Provides fun provideUserDao(db: LettaDatabase): UserDao = db.userDao()

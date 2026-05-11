@@ -3,6 +3,7 @@ package dev.mizzenmast.letta.ui.conversations
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.mizzenmast.letta.data.local.TokenStore
 import dev.mizzenmast.letta.data.repository.ConversationRepository
 import dev.mizzenmast.letta.service.WebSocketManager
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,7 +15,10 @@ import javax.inject.Inject
 class ConversationListViewModel @Inject constructor(
     private val repository: ConversationRepository,
     private val wsManager: WebSocketManager,
+    private val tokenStore: TokenStore,
 ) : ViewModel() {
+
+    val currentUserId: String = tokenStore.userId ?: ""
 
     val conversations = repository.observeConversations()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

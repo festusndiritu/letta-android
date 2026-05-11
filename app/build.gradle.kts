@@ -74,11 +74,10 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.play.services.auth.api.phone)
     debugImplementation(libs.androidx.ui.tooling)
 
     // SMS Retriever
-//    implementation(libs.play.services.auth.phone)
+    implementation(libs.play.services.auth.api.phone)
 
     // Navigation
     implementation(libs.androidx.navigation.compose)

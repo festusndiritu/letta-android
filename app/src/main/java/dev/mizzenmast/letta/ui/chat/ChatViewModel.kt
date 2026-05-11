@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.mizzenmast.letta.data.local.TokenStore
+import dev.mizzenmast.letta.data.local.SettingsStore
 import dev.mizzenmast.letta.data.local.dao.MessageDao
 import dev.mizzenmast.letta.data.repository.ConversationRepository
 import dev.mizzenmast.letta.data.repository.MetaRepository
+import dev.mizzenmast.letta.service.CallStateManager
 import dev.mizzenmast.letta.service.WebSocketManager
 import dev.mizzenmast.letta.data.remote.dto.LinkPreviewDto
 import dev.mizzenmast.letta.data.remote.dto.MessageDto
@@ -32,10 +34,12 @@ data class ChatUiState(
 class ChatViewModel @Inject constructor(
     private val repository: ConversationRepository,
     private val wsManager: WebSocketManager,
+    private val callStateManager: CallStateManager,
     private val tokenStore: TokenStore,
     private val messageDao: MessageDao,
     private val mediaRepository: dev.mizzenmast.letta.data.repository.MediaRepository,
     private val metaRepository: MetaRepository,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
 
     private val _conversationId = MutableStateFlow("")
@@ -63,6 +67,12 @@ class ChatViewModel @Inject constructor(
     val lastSeen: StateFlow<Map<String, Long>> = wsManager.lastSeen
 
     val currentUserId: String? = tokenStore.userId
+
+    val wallpaperType: StateFlow<String> = settingsStore.wallpaperTypeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "NONE")
+
+    val wallpaperValue: StateFlow<String> = settingsStore.wallpaperValueFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     val messages = _conversationId
         .flatMapLatest { id -> repository.observeMessages(id) }
@@ -251,5 +261,37 @@ class ChatViewModel @Inject constructor(
         val conversationId = _conversationId.value
         if (conversationId.isEmpty()) return
         viewModelScope.launch { repository.unmuteConversation(conversationId) }
+    }
+
+    fun deleteMessage(messageId: String) {
+        viewModelScope.launch {
+            repository.deleteMessage(messageId)
+        }
+    }
+
+    fun pinMessage(messageId: String) {
+        val conversationId = _conversationId.value
+        if (conversationId.isEmpty()) return
+        viewModelScope.launch { repository.pinMessage(conversationId, messageId) }
+    }
+
+    fun unpinMessage(messageId: String) {
+        val conversationId = _conversationId.value
+        if (conversationId.isEmpty()) return
+        viewModelScope.launch { repository.unpinMessage(conversationId, messageId) }
+    }
+
+    /** Initiate a voice or video call with the peer in a direct conversation. */
+    fun startCall(callType: String) {
+        val conversationId = _conversationId.value
+        if (conversationId.isEmpty()) return
+        val myId = currentUserId ?: return
+        val peer = members.value.firstOrNull { it.userId != myId } ?: return
+        callStateManager.startOutgoingCall(
+            conversationId = conversationId,
+            calleeId = peer.userId,
+            calleeName = peer.displayName,
+            callType = callType,
+        )
     }
 }

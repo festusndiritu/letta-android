@@ -68,7 +68,7 @@ fun DisplayNameScreen(
             .fillMaxSize()
             .systemBarsPadding()
             .imePadding()
-            .padding(horizontal = 32.dp),
+            .padding(horizontal = dev.mizzenmast.letta.ui.components.LettaSpacing.huge),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.Start,
     ) {
